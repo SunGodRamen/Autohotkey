@@ -5,18 +5,18 @@ global windowMapping := {}
 #Include, C:\Users\avons\Code\AutoHotkey\Library\Hotkey.ahk
 #Include, C:\Users\avons\Code\AutoHotkey\Util\Tooltip.ahk
 #Include, C:\Users\avons\Code\Autohotkey\Library\VirtualDesktopAccessor.ahk
-#Include, C:\Users\avons\Code\Autohotkey\Library\Logger.ahk
+#Include, C:\Users\avons\Code\Autohotkey\config.ahk
 
 ; Create hotkeys
 ; Mark Window
 Loop, 10 {
-    hotkeyAssign := new Hotkey("#Numpad" A_Index - 1)
+    hotkeyAssign := new Hotkey(mark_window_prefix A_Index - 1)
     hotkeyAssign.onEvent(Func("AssignWindowToNumber").Bind(A_Index - 1))
 }
 
 ; Focus Mark
 Loop, 10 {
-    hotkeyFocus := new Hotkey("Numpad" A_Index - 1)
+    hotkeyFocus := new Hotkey(mark_focus_prefix A_Index - 1)
     hotkeyFocus.onEvent(Func("FocusWindowByNumber").Bind(A_Index - 1))
 }
 
