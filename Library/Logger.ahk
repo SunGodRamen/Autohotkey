@@ -2,9 +2,11 @@ class Logger {
     LogLevels := { "ERROR": 1, "WARN": 2, "INFO": 3, "DEBUG": 4 }
     
     LogLevel := LogLevels.ERROR
+    LogFile := 
     
-    __New(logLevel) {
+    __New(logLevel, logFile) {
         ; Set the log level
+        this.LogFile := logFile
         this.SetLogLevel(logLevel)
     }
 
@@ -48,20 +50,32 @@ class Logger {
     }
     
     ; Generalized log function
-    LogMessage(log_level, msg) {
-        this.CreateEntry(log_level, msg)
+    Message(msg_log_level, msg) {
+        current_log_level := this.LogLevel
+        if (msg_log_level < current_log_level){
+            this.CreateEntry(msg_log_level, msg)
+        }
     }
 
     ; Actual log function that uses OutputDebugString
     CreateEntry(level, msg) {
+
         ; Get current timestamp
         FormatTime, currentTime,, yyyy-MM-dd HH:mm:ss
         
         ; Construct the log message with timestamp
         debug_log := currentTime . " " . "[" . level . "] - " . msg
 
-        ; Send the log message to the debugger
         OutputDebug, %debug_log%
+        
+        log_file := this.LogFile
+        if (log_file = "") {
+            OutputDebug, "No Log File Specified"
+            return
+        }
+
+        ; Log to file
+        FileAppend, %debug_log%`n, %log_file%
     }
 
     ; Log the application exit
