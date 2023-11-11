@@ -11,8 +11,8 @@
 #Include, C:\Users\avons\Code\AutoHotkey\Mappings\AltTab.ahk
 
 ; Quit mapping: CTRL + ALT + WIN + SHIFT + Q
-HYPER_Q := new Hotkey("^!#+q")
-HYPER_Q.onEvent("Quit_Keymap")
+HYPER_Z := new Hotkey("^!#+z")
+HYPER_Z.onEvent("Quit_Keymap")
 
 Quit_Keymap() {
     ExitApp, 0
