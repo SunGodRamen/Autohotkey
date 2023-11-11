@@ -3,31 +3,6 @@ Virtual Desktop Control Library for AutoHotkey
 This script provides an interface to the VirtualDesktopAccessor.dll, which allows manipulation and querying 
 of Windows 10/11 Virtual Desktops directly from AutoHotkey. 
 
-Features:
-1. Get the number of current virtual desktops.
-   - GetDesktopCount()
-
-2. Move the current window to a specified desktop.
-   - MoveCurrentWindowToDesktop(desktopNumber)
-
-3. Navigate to the previous or next desktop.
-   - GoToPrevDesktop(), GoToNextDesktop()
-
-4. Directly switch to a specified desktop number.
-   - GoToDesktopNumber(num)
-
-5. Retrieve or set the name of a virtual desktop by its number.
-   - GetDesktopName(num), SetDesktopName(num, name)
-
-6. Create or remove virtual desktops.
-   - CreateDesktop(), RemoveDesktop(remove_desktop_number, fallback_desktop_number)
-
-7. Determine if a window is on the current virtual desktop, on a specific desktop, or if it's a pinned window.
-   - IsWindowOnCurrentVirtualDesktop(hwnd), IsWindowOnDesktopNumber(hwnd, desktopNumber), IsPinnedWindow(hwnd)
-
-8. Ability to detect mouse left button state to either move or switch to a desktop.
-   - MoveOrGotoDesktopNumber(num)
-
 This script loads the VirtualDesktopAccessor.dll and retrieves function pointers for efficient 
 function calls. The script's functions serve as wrappers to these DLL functions, making it easier 
 to interact with virtual desktops directly from AHK scripts.
@@ -35,20 +10,34 @@ to interact with virtual desktops directly from AHK scripts.
 NOTE: For setting desktop names with UTF-8 characters, ensure the AHK script is saved with UTF-8 with BOM.
 */
 
-
 ; Path to the DLL, relative to the script
 VDA_PATH := "C:\Users\avons\Code\AutoHotkey\DLL\VirtualDesktopAccessor.dll"
 hVirtualDesktopAccessor := DllCall("LoadLibrary", "Str", VDA_PATH, "Ptr")
 
 global GetDesktopCountProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopCount", "Ptr")
-global GoToDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
 global GetCurrentDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetCurrentDesktopNumber", "Ptr")
+
 global IsWindowOnCurrentVirtualDesktopProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "IsWindowOnCurrentVirtualDesktop", "Ptr")
 global IsWindowOnDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "IsWindowOnDesktopNumber", "Ptr")
+global GetWindowDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetWindowDesktopNumber", "Ptr")
+global GetWindowDesktopIdProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetWindowDesktopId", "Ptr")
+
+global GoToDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GoToDesktopNumber", "Ptr")
 global MoveWindowToDesktopNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "MoveWindowToDesktopNumber", "Ptr")
+
 global IsPinnedWindowProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "IsPinnedWindow", "Ptr")
+global PinWindowProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "PinWindow", "Ptr")
+global UnPinWindowProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "UnPinWindow", "Ptr")
+
+global IsPinnedAppProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "IsPinnedApp", "Ptr")
+global PinAppProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "PinApp", "Ptr")
+global UnPinAppProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "UnPinApp", "Ptr")
+
 global GetDesktopNameProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopName", "Ptr")
 global SetDesktopNameProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "SetDesktopName", "Ptr")
+global GetDesktopIdByNumberProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopIdByNumber", "Ptr")
+global GetDesktopNumberByIdProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "GetDesktopNumberById", "Ptr")
+
 global CreateDesktopProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "CreateDesktop", "Ptr")
 global RemoveDesktopProc := DllCall("GetProcAddress", "Ptr", hVirtualDesktopAccessor, "AStr", "RemoveDesktop", "Ptr")
 
@@ -58,8 +47,14 @@ UnregisterPostMessageHookProc := DllCall("GetProcAddress", "Ptr", hVirtualDeskto
 
 GetDesktopCount() {
     global GetDesktopCountProc
-    count := DllCall(GetDesktopCountProc, "Int")
-    return count
+    desktopCount := DllCall(GetDesktopCountProc, "Int")
+    return desktopCount
+}
+
+GetCurrentDesktopNumber() {
+    global GetCurrentDesktopNumberProc
+    currentDesktop := DllCall(GetCurrentDesktopNumberProc, "Int")
+    return currentDesktop
 }
 
 MoveCurrentWindowToDesktop(desktopNumber) {
@@ -154,8 +149,86 @@ IsWindowOnDesktopNumber(hwnd, desktopNumber) {
     return result
 }
 
+GetDesktopIdByNumber(number) {
+    global GetDesktopIdByNumberProc
+    VarSetCapacity(desktopId, 16, 0)
+    success := DllCall(GetDesktopIdByNumberProc, "Int", number, "Ptr", &desktopId, "UInt")
+    if (success) {
+        return desktopId
+    }
+    return 0 ; Return 0 if the function fails
+}
+
+GetDesktopNumberById(desktopId) {
+    global GetDesktopNumberByIdProc
+    desktopNumber := DllCall(GetDesktopNumberByIdProc, "Ptr", &desktopId, "Int")
+    return desktopNumber
+}
+
+GetWindowDesktopId(hwnd) {
+    global GetWindowDesktopIdProc
+    VarSetCapacity(desktopId, 16, 0)
+    success := DllCall(GetWindowDesktopIdProc, "Ptr", hwnd, "Ptr", &desktopId, "UInt")
+    if (success) {
+        return desktopId
+    }
+    return 0 ; Return 0 if the function fails
+}
+
+GetWindowDesktopNumber(hwnd) {
+    global GetWindowDesktopNumberProc
+    desktopNumber := DllCall(GetWindowDesktopNumberProc, "Ptr", hwnd, "Int")
+    return desktopNumber
+}
+
 IsPinnedWindow(hwnd) {
     global IsPinnedWindowProc
-    result := DllCall(IsPinnedWindowProc, "Ptr", hwnd, "Int")
-    return result
+    pinned := DllCall(IsPinnedWindowProc, "Ptr", hwnd, "Int")
+    return pinned
+}
+
+PinWindow(hwnd) {
+    global PinWindowProc
+    success := DllCall(PinWindowProc, "Ptr", hwnd, "Int")
+    return success
+}
+
+UnPinWindow(hwnd) {
+    global UnPinWindowProc
+    success := DllCall(UnPinWindowProc, "Ptr", hwnd, "Int")
+    return success
+}
+
+IsPinnedApp(hwnd) {
+    global IsPinnedAppProc
+    pinned := DllCall(IsPinnedAppProc, "Ptr", hwnd, "Int")
+    return pinned
+}
+
+PinApp(hwnd) {
+    global PinAppProc
+    success := DllCall(PinAppProc, "Ptr", hwnd, "Int")
+    return success
+}
+
+UnPinApp(hwnd) {
+    global UnPinAppProc
+    success := DllCall(UnPinAppProc, "Ptr", hwnd, "Int")
+    return success
+}
+
+RegisterPostMessageHook(listenerHwnd, messageOffset) {
+    global RegisterPostMessageHookProc
+    success := DllCall(RegisterPostMessageHookProc, "Ptr", listenerHwnd, "UInt", messageOffset, "Int")
+    return success
+}
+
+UnregisterPostMessageHook(listenerHwnd) {
+    global UnregisterPostMessageHookProc
+    success := DllCall(UnregisterPostMessageHookProc, "Ptr", listenerHwnd, "Int")
+    return success
+}
+
+FreeLibrary() {
+    DllCall("FreeLibrary", "Ptr", hVirtualDesktopAccessor)
 }
