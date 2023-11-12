@@ -1,67 +1,23 @@
-/*
-Hotkey Library for Autohotkey
+#Include, C:\Users\avons\Code\AutoHotkey\Library\ArrayPlus.ahk
+#Include, C:\Users\avons\Code\AutoHotkey\Library\JSON.ahk
+#Include, C:\Users\avons\Code\Autohotkey\Library\Logger.ahk
 
- 1. INCLUDE THE Hotkey CLASS:
-    Before utilizing the Hotkey class, ensure that you include the file containing the class:
-
- 2. BASIC USAGE:
-    To assign a function to a specific key/button press:
- hk0 := new Hotkey("Joy4")
- hk0.onEvent("myFunc")
-
- 3. USING CONDITIONS AND GROUPS:
-    You can set groups and specific conditions for hotkeys:
-    - Set a hotkey group:
- Hotkey.setGroup("testGroup")
-    - Set a condition like the window should be active for the hotkey to work:
- Hotkey.IfWinActive("ahk_class Notepad")
-    - Assign functions/methods to hotkeys under specific conditions:
- hk := new Hotkey("a")
- hk.onEvent(ObjBindMethod(instance, "method"))
-
- 4. USING MULTIPLE CONDITIONS:
-    You can set multiple conditions and functions/methods for the same hotkey:
- hk := new Hotkey("a", false)
- hk.onEvent("myFunc", ObjBindMethod(instance, "method"))
-
- 5. EXCEPTIONS FOR CONDITIONS:
-    Use `InTheEventNot` to provide exceptions to conditions:
- Hotkey.InTheEventNot("check")
- 	hk2 := new Hotkey("Joy3")
-   hk2.onEvent(ObjBindMethod(instance, "method2"), "myOtherFunc")
-
- 6. TOGGLE HOTKEYS:
-    Use keyboard shortcuts to enable or disable hotkeys:
- Hotkey.enableAll()                   ; Enable all hotkeys
- Hotkey.disableAll()                  ; Disable all hotkeys
-
- 7. CONTROL INDIVIDUAL HOTKEYS:
- hk.disable()               ; Disable the hotkey
- hk.enable()                ; Enable the hotkey
- hk.toggle()                ; Toggle the hotkey on/off
- hk.getCriteria())          ; Get hotkey criteria
- hk.getKeyName()            ; Get hotkey name
- hk.isEnabled()             ; Get hotkey enabled state
- hk.delete()                ; Delete the hotkey
- hk := ""                   ; Clear the variable
-
- 8. CUSTOM CLASSES AND FUNCTIONS:
-    You can bind hotkey events to methods of your custom class or standalone functions:
-    Class myClass: Contains `method` and `method2` to display tooltips
-    myFunc and myOtherFunc: Standalone functions that display tooltips
-*/
+global log := new Logger("DEBUG", "C:\Users\avons\Code\Autohotkey\Log\Hotkey.log")
 
 Class Hotkey extends _Hk {
 	__New(_keyName, _enabled:=true) {
 		local
+		log.Message("DEBUG", "Entered Hotkey.__New")
 		global _HotkeyIt, _Hotkey
 		try {
 			if (InStr(_keyName, "Joy"))
 				return new _HotkeyIt(_keyName, _enabled, -2)
 			else return new _Hotkey(_keyName, _enabled, -2)
 		} catch _exception {
+			log.Message("ERROR", "Error Hotkey.__New: " _exception.message)
 			throw Exception(_exception.message, -1, _exception.extra)
 		}
+		log.Message("DEBUG", "Exit Hotkey.__New")
 	}
 }
 Class _HotkeyIt extends __Hotkey__ {
@@ -82,16 +38,32 @@ Class _HotkeyIt extends __Hotkey__ {
 	return {value: _keyName}
 	}
 	__Delete() {
-		; WinActivate, ahk_class Notepad
-		; WinWaitActive, ahk_class Notepad
-		; ControlSend,, % "{Text}" . A_ThisFunc "," this.getKeyName() "`r`n", A
+		WinActivate, ahk_class Notepad
+		WinWaitActive, ahk_class Notepad
+		ControlSend,, % "{Text}" . A_ThisFunc "," this.getKeyName() "`r`n", A
 	}
 }
 ; =======================================
 Class _Hotkey extends __Hotkey__ {
 	_getKeypressHandler() {
-	return this._keypressHandler:= IsObject(this._keypressHandler) ? this._keypressHandler : this.call.bind(this)
+		log.Message("DEBUG", "Entering _Hotkey._getKeypressHandler`n")
+		; Check if the _keypressHandler has already been set and is an object.
+		if (IsObject(this._keypressHandler)) {
+			; If it's already an object, log or display its information.
+			handlerInfo := "Existing keypress handler: " (this._keypressHandler.Name ? this._keypressHandler.Name : "Anonymous")
+			handlerObj := JSON.Dump(this._keypressHandler)
+
+			log.Message("DEBUG", "_Hotkey._getKeypressHandler name:" handlerInfo "object:" handlerObj)
+		} else {
+			; If it's not set, bind the call method and log or display that information.
+			this._keypressHandler := this.call.bind(this)
+			log.Message("DEBUG", "Setting new keypress handler to bound 'call' method.")
+		}
+		log.Message("DEBUG", "Exiting _Hotkey._Keypresshandler")
+		; Return the _keypressHandler.
+		return this._keypressHandler
 	}
+
 	_dispose() {
 	local
 		_r := base._dispose()
@@ -101,9 +73,7 @@ Class _Hotkey extends __Hotkey__ {
 	return {value: _keyName}
 	}
 	__Delete() {
-		; WinActivate, ahk_class Notepad
-		; WinWaitActive, ahk_class Notepad
-		; ControlSend,, % "{Text}" . A_ThisFunc "," this.getKeyName() "`r`n", A
+		log.Message("INFO", "Hotkey " this.getKeyName() " deleted successfully.")
 	}
 }
 ; =====================
@@ -113,6 +83,7 @@ Class __Hotkey__ extends _Hk {
 	_keypressHandler := ""
 	__New(_keyName, _enabled:=true, _excpLevel:="") {
 		local
+		log.Message("DEBUG", "Entering __Hotkey__.__New")
 		_that := ""
 		try this._oKeyName := this._validateAndNormalize(_keyName)
 		catch _exception {
@@ -123,22 +94,45 @@ Class __Hotkey__ extends _Hk {
 		; base.__New(this.getKeyName(), this, _that), (_that && _that.delete()) ; +++
 		base.__New(this.getKeyName(), this, _that), (_that && _that._dispose()) ; +++
 		this[ (!this._enabled:=!_enabled) ? "enable" : "disable" ]()
+		log.Message("DEBUG", "Exiting __Hotkey__.__New")
 	}
 	_validateAndNormalize(_keyName) {
 	}
 	_getKeypressHandler() {
 	}
+	
 	_apply(_cmd:="", _options:="") {
-		local
+		local 
 		global Hotkey
-		static _dummy := Func("StrLen").bind("")
+		static _dummy := Func("StrLen").bind("") ; A dummy function for demonstration.
+		log.Message("DEBUG", "Entering __Hotkey__._apply")
+		
+		; Determine whether to use the dummy handler or get the actual keypress handler.
 		_keypressHandler := (_cmd = "") ? _dummy : this._getKeypressHandler()
+		
+		; Append additional options for the Hotkey command.
 		_options .= A_Space . _cmd . A_Space . "T1 B0"
+		
+		; Debugging: Display the command and options before applying the hotkey.
+		log.Message("DEBUG", "Applying hotkey with command:"  _cmd " `nOptions:"  _options )
+		
+		; Apply any criteria set for the hotkey.
 		this._applyCriteria()
+		
+		; Set up or modify the hotkey with the given handler and options.
 		Hotkey % this.getKeyName(), % _keypressHandler, % _options
-		Hotkey._applyCriteria() ; +++
-	return true
+		
+		; Re-apply criteria after setting up the hotkey (if necessary).
+		Hotkey._applyCriteria() ; This line seems to indicate a class method, but it's not typical AHK syntax.
+		
+		; Debugging: Confirm that the hotkey setup has been attempted.
+		keyname := this.getKeyName()
+		log.Message("DEBUG", "Hotkey setup attempted for key:"  keyname )
+		
+		return true
 	}
+
+
 	_dispose() {
 	this.disable(), this._apply(), this._enabled:="", this.onEvent()
 	}
@@ -166,14 +160,59 @@ Class __Hotkey__ extends _Hk {
 	isEnabled() {
 	return this._enabled
 	}
+
 	call(_p*) {
-	this.__event.call(this, _p*)
+		log.Message("DEBUG", "Entering __Hotkey__.call")
+		; Check if the __event property has been set to a function/method
+		if (IsObject(this.__event)) {
+			; If it's a function, display or log its name
+			functionName := this.__event.Name ? this.__event.Name : "Anonymous"
+			log.Message("DEBUG", "Event handler name:" functionName)
+			; If it's a bound function, you may be able to extract more info depending on its properties
+			if (functionName = "Anonymous" && this.__event.hasOwnProperty("Target")) {
+				boundTargetName := this.__event.Target.Name ? this.__event.Target.Name : "Anonymous Target"
+				log.Message("DEBUG", "Bound function target name:" boundTargetName )
+			}
+		} else {
+			; If __event is not set to an object, log or display a warning
+			log.Message("WARN", "__event is not set to a function/method.")
+		}
+
+		args_string := Array_Print(_p)
+		args_len := _p.MaxIndex()
+		log.Message("DEBUG", args_len "Arguments passed to __Hotkey__.call:" args_string)
+
+		; Continue with the existing functionality
+		this.__event.call(this, _p*)
 	}
 
 	__event := ""
 	onEvent(_args*) {
-		return this._Callbacks._on(this, StrSplit(A_ThisFunc, ".").pop(), _args*) ; +++
+		log.Message("DEBUG", "Entering __Hotkey__.onEvent")
+		; Retrieve the function's name or object definition.
+		functionName := _args[1].hasOwnProperty("Bind") ? "BoundFunc" : _args[1].Name
+		; Display the name of the function passed to onEvent.
+		args_string := Array_Print(_args)
+		args_len := _args.MaxIndex()
+		log.Message("DEBUG", args_len " args passed to __Hotkey__.onEvent: " args_string)
+
+		
+		; If the function is a bound function, you can display more information.
+		if (functionName = "BoundFunc") {
+			boundFuncInfo := "Bound Function:`n"
+			for key, value in _args[1] {
+				boundFuncInfo .= key ": " value "`n"
+			}
+			log.Message("DEBUG", "boundFuncInfo: " boundFuncInfo )
+		}
+		
+		; You can also log the function details to a file for analysis.
+		log.Message("DEBUG", "Arguments passed to __Hotkey__.onEvent:" args_string)
+		
+		; Call the original _Callbacks._on method with the provided arguments.
+		return this._Callbacks._on(this, StrSplit(A_ThisFunc, ".").pop(), _args*)
 	}
+
 	Class _Callbacks {
 		chain := []
 		__New(_args*) {
@@ -189,22 +228,62 @@ Class __Hotkey__ extends _Hk {
 			for _i, _fn in _args
 				this.chain.push(_fn)
 		}
+
 		call(_args*) {
-			local
-			for _, _fn in this.chain
-				%_fn%(_args*)
+			local 
+			log.Message("DEBUG", "Entering _Callbacks.call")
+			; Iterate over each function in the chain
+			for index, _fn in this.chain {
+				; Get the name of the function, if available
+				functionName := IsObject(_fn) ? (_fn.Name ? _fn.Name : "Anonymous") : "Not an object"
+				
+				; Debugging: Display a message box with the function name and index
+				log.Message("DEBUG", "Calling function"  index ":"  functionName )
+
+				; If _fn is an object and is a bound function, display more details
+				if IsObject(_fn) && _fn.IsBoundFunc {
+					; Get the target object's class name if possible
+					targetClassName := _fn.Target.__Class ? _fn.Target.__Class : "Unknown Class"
+					log.Message("DEBUG", "Bound function's target class:"  targetClassName )
+				}
+
+				; Execute the function with the arguments
+				try {
+					%_fn%(_args*)
+				} catch e {
+					; If there's an error, show a message box with the error details
+		            log.Message("DEBUG", "Error in callback An error occurred in callback #" index ":`nFunction: " functionName "`nError: " e.message)
+					Throw, Exception(e.message)
+				}
+			}
 		}
+
 		_on(_inst, _callee, _args*) {
 			local _functor, _exception, _classPath, _className, _obj
+			log.Message("DEBUG", "Entering _Callbacks._on with _callee:"  _callee )
+
 			_classPath := StrSplit(this.__Class, "."), _className := _classPath.removeAt(1)
+			__class := this.__Class
+			log.Message("DEBUG", "Class Path: " __class " `nClass Name: " _className)
+
 			_obj := (_classPath.count() > 0) ? %_className%[_classPath*] : %_className%
-			try _functor:=new _obj(_args*)
-			catch _exception {
+			log.Message("DEBUG", "Object reference: " (_classPath.count() > 0 ? "Namespaced" : "Direct") "")
+
+			try {
+				_functor := new _obj(_args*)
+				log.Message("DEBUG", "Functor created successfully.")
+			} catch _exception {
+				log.Message("ERROR",  "Exception caught: " _exception.message )
 				throw Exception(_exception.message, -1, _exception.extra)
-			; return
 			}
-			_inst["__" . LTrim(_callee, "on")] := _functor
+
+			; Assuming that _callee is expected to be in the format "onEventName"
+			; and the corresponding property to be "__EventName"
+			propName := "__" . LTrim(_callee, "on")
+			_inst[propName] := _functor
+			log.Message("DEBUG", "Bound " propName " to functor. Exiting _Callbacks._on")
 		}
+
 	}
 }
 Class _Hk extends _Context {
@@ -245,6 +324,7 @@ Class _Context {
 	_criterion3 := ""
 	__New(_hotkey, _instance, ByRef _inst:="") {
 		local
+		log.Message("DEBUG", "Entering _Context.__New")
 		global _Context
 		this._criteria := _Context.getDefaultCriteria()
 		this._criterion22 := _Context._criterion22
@@ -254,6 +334,7 @@ Class _Context {
 			_inst := _subContext[_hotkey]
 		} else (_subContext:=_Context._instances[ _criteria* ]:={})
 		_subContext[_hotkey] := _instance
+		log.Message("DEBUG", "Exiting _Context.__New")
 	}
 	_remove() {
 		local
@@ -435,7 +516,7 @@ Class ObjBindTimedMethod {
 	(this._iterating && (DllCall("KillTimer", "Ptr", 0, "UInt", this._iterating), this._iterating:=false))
 	}
 	__Delete() {
-		; MsgBox % A_ThisFunc
+		log.Message("DEBUG", "ObjBindTimedMethod.__Delete" A_ThisFunc)
 	}
 	_dispose() {
 		if (this._lpTimerFunc) {
