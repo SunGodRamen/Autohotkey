@@ -1,6 +1,6 @@
-ShowToolTip(text) {
+ShowToolTip(text, delay) {
     ToolTip, %text%
-    SetTimer, RemoveToolTip, 1500 ; Show tooltip for 1.5 seconds
+    SetTimer, RemoveToolTip, %delay%
 }
 
 RemoveToolTip:
