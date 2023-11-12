@@ -1,45 +1,46 @@
-#Persistent
-#Include, C:\Users\avons\Code\AutoHotkey\Library\Hotkey.ahk
-#Include, C:\Users\avons\Code\Autohotkey\config.ahk
+#Include, C:\Users\avons\Code\AutoHotkey\Library\Hotkey_debug.ahk
+#Include, C:\Users\avons\Code\AutoHotkey\Util\Tooltip.ahk
 
-global leaderKeyActive := false
-leaderKeyTimeout := 1500
+class LeaderKey {
+    active := false
+    timeout := 1500
+    hotkeyObject := null
+    timerMethod := null  ; This will hold our ObjBindTimedMethod object
 
-; Set the leader key (CapsLock in this case)
-LeaderKey := new Hotkey(leader_key)
-LeaderKey.onEvent("StartListenTimer").bind(leaderKeyTimeout)
+    ; Constructor
+    __New(hotkey, timeout) {
+        this.hotkeyObject := hotkey
+        this.hotkeyObject.__event := ObjBindMethod(this, "HotkeyEvent")
+        this.timerMethod := new ObjBindTimedMethod(this, "Reset")
+        if (timeout != "") {
+            this.timeout := timeout
+        }
+    }
 
-StartListenTimer(timeout) {
-    leaderKeyActive := true
-    ; You can set a timer to reset the leader key mode after a certain period
-    SetTimer, ResetLeaderKey, %timeout%
-    return
+
+    ; Method that handles the hotkey event
+    HotkeyEvent() {
+        ; If the leader key is not active, start the timer.
+        if (!this.active) {
+            this.active := true
+            ; Start the timer using the ObjBindTimedMethod object
+            this.timerMethod.start(this.timeout)
+        } else {
+            ; If the leader key was already active, handle the second key press here.
+            ; Reset the leader key after handling.
+            this.Reset()
+        }
+    }
+
+    ; Reset the leader key mode
+    Reset() {
+        this.active := false
+        ; Stop the timer as we're resetting the leader key
+        this.timerMethod.kill()
+    }
+
+    ; Method to check if the leader key is active
+    IsActive() {
+        return this.active
+    }
 }
-
-; Define actions for keys following the leader key
-#If (leaderKeyActive)
-
-    a::
-        MsgBox, Action A triggered!
-        ResetLeaderKeyMode()
-        return
-
-    b::
-        MsgBox, Action B triggered!
-        ResetLeaderKeyMode()
-        return
-
-#If ; End conditional hotkeys
-
-; Function to reset the leader key mode
-ResetLeaderKey:
-    leaderKeyActive := false
-    SetTimer, ResetLeaderKey, Off
-    return
-
-; Helper function to reset the leader key mode
-ResetLeaderKeyMode() {
-    leaderKeyActive := false
-    SetTimer, ResetLeaderKey, Off
-}
-
